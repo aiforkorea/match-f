@@ -12,3 +12,4 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     SECRET_KEY = os.getenv('SECRET_KEY')
     #API_KEY = os.getenv('API_KEY')
+
