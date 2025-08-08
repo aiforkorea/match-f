@@ -2,7 +2,6 @@
 from flask import render_template, current_app, request
 #from flask_login import login_required, current_user
 from apps.main import main
-
 @main.route("/")
 def index():
     # INFO 레벨 로그: 정상적인 동작을 기록
