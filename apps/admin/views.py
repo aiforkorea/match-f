@@ -1,6 +1,6 @@
 # apps/admin/views.py
 import datetime
-from flask import flash, redirect, render_template, request, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import func, or_
 # --- WTForms Imports ---
@@ -59,13 +59,17 @@ def users():
     PER_PAGE = 10
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '', type=str)
-    
+    # logging
+    current_app.logger.debug("search_query: %s", search_query)
     # --- New search parameters ---
     user_type_query = request.args.get('user_type', '', type=str) # 'admin', 'expert', or 'user'
     is_active_query = request.args.get('is_active', '', type=str) # 'true', 'false', or ''
     created_at_query = request.args.get('created_at', '', type=str) # YYYY-MM-DD format
     # ---------------------------
     users_query = User.query
+    # logging
+    current_app.logger.debug("users_query: %s", users_query)
+
     # 검색 기능 (사용자 이름 또는 이메일)
     if search_query:
         users_query = users_query.filter(
