@@ -1,4 +1,4 @@
-# 관리자 권한 확인 데코레이터
+# apps/decorators.py
 from datetime import datetime, timedelta
 import functools
 import logging
@@ -14,7 +14,7 @@ from apps.dbmodels import User
 def admin_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
+        if not current_user.is_authenticated or not current_user.is_admin():
             flash('관리자 권한이 필요합니다.', 'danger')
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)

@@ -247,3 +247,79 @@ def create_user():
             db.session.rollback()
             flash(f'사용자 생성 중 오류가 발생했습니다: {e}', 'danger')
     return render_template('admin/create_user.html', title='사용자 생성', form=form)
+
+# ==============================================================================
+# ### 로그 조회 관련 ###
+# ==============================================================================
+@admin.route('/logs', methods=['GET'])
+@admin_required
+def log_list():
+    """
+    관리자 페이지에서 로그를 조회하고 검색하는 뷰 함수입니다.
+    - 사용자 ID, 대상 사용자 ID, 로그 제목, 기간으로 필터링할 수 있습니다.
+    - 검색 결과는 페이지네이션으로 처리됩니다.
+    """
+    PER_PAGE = 10
+    page = request.args.get('page', 1, type=int)
+    
+    # --- 검색 파라미터 ---
+    user_id = request.args.get('user_id', '', type=str)
+    target_user_id = request.args.get('target_user_id', '', type=str)
+    log_title = request.args.get('log_title', '', type=str)
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
+    # 기본 쿼리
+    logs_query = Log.query
+
+    # --- 필터링 로직 ---
+    if user_id:
+        logs_query = logs_query.filter(Log.user_id == user_id)
+    
+    if target_user_id:
+        logs_query = logs_query.filter(Log.target_user_id == target_user_id)
+
+    if log_title:
+        logs_query = logs_query.filter(Log.log_title.ilike(f'%{log_title}%'))
+
+    try:
+        if start_date:
+            search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
+            logs_query = logs_query.filter(Log.timestamp >= start_of_day)
+        
+        if end_date:
+            search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
+            logs_query = logs_query.filter(Log.timestamp <= end_of_day)
+
+    except ValueError:
+        flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
+        # 잘못된 날짜 값이 들어오면 해당 파라미터를 초기화하여 전체 검색이 되도록 함
+        start_date = ""
+        end_date = ""
+
+    # 페이지네이션 적용
+    logs_pagination = logs_query.order_by(Log.timestamp.desc()).paginate(
+        page=page, per_page=PER_PAGE, error_out=False
+    )
+
+    # 페이지네이션 링크에 현재 검색 인자들을 유지하기 위해 딕셔너리 생성
+    filtered_args = request.args.to_dict(flat=True)
+    filtered_args.pop('page', None)
+
+    return render_template(
+        'admin/logs.html',
+        title='로그 조회',
+        logs=logs_pagination.items,
+        pagination=logs_pagination,
+        filtered_args=filtered_args,
+        # 템플릿에서 현재 검색 값을 유지하기 위해 전달
+        search_params={
+            'user_id': user_id,
+            'target_user_id': target_user_id,
+            'log_title': log_title,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+    )
