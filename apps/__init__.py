@@ -43,15 +43,17 @@ def create_app():   # factory 함수
     @app.context_processor
     def inject_user_type():
         return {'UserType': UserType}
-    # 블루프린트 등록  -- auth 모듈이 없으므로 현재 오류 발생(auth 설치후 오류 없어짐)
+    # 블루프린트 등록  -- admin 모듈이 없으므로 현재 오류 발생(admin 설치후 오류 없어짐)
     from .main import main
     from .auth import auth
+    from .admin import admin
 
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
+    app.register_blueprint(admin, url_prefix='/admin')
     # db 테이블 생성 및 관리자 초기계정 생성
     with app.app_context():
-        db.drop_all()         # 운영시에는 커멘트 처리 필요
+        #db.drop_all()         # 운영시에는 커멘트 처리 필요
         db.create_all()       # 테이블 생성
         # 최초 관리자 계정 생성
         admin_username = app.config.get('ADMIN_USERNAME')
