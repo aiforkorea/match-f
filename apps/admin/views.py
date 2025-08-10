@@ -142,7 +142,7 @@ def toggle_user_active(user_id):
         user.is_active = not user.is_active
         action = "활성" if user.is_active else "비활성"
         summary = f"'{user.username}'(ID:{user.id}) 계정을 {action} 상태로 변경."
-        log_action(title="계정 상태 변경", summary=summary, target_user_id=user.id)
+        log_action(title="계정상태변경", summary=summary, target_user_id=user.id)
         db.session.commit()
         flash(f'{user.username} 계정 상태가 {action}으로 변경되었습니다.', 'success')
     except Exception as e:
@@ -163,7 +163,7 @@ def user_type_change(user_id):
             original_type = user.user_type.value
             user.user_type = UserType(new_user_type_str)
             summary = f"'{user.username}'(ID:{user.id}) 역할을 '{original_type}'에서 '{new_user_type_str}'(으)로 변경."
-            log_action(title="사용자 역할 변경", summary=summary, target_user_id=user.id)
+            log_action(title="사용자역할변경", summary=summary, target_user_id=user.id)
             db.session.commit()
             flash(f'사용자 역할 변경이 성공적으로 처리되었습니다.', 'success')
         except Exception as e:
@@ -188,7 +188,7 @@ def edit_user(user_id):
                 summary += f"이름: '{original_username}'->'{user.username}'. "
             if original_email != user.email:
                 summary += f"이메일: '{original_email}'->'{user.email}'."
-            log_action(title="사용자 정보 수정", summary=summary, target_user_id=user.id)
+            log_action(title="사용자정보수정", summary=summary, target_user_id=user.id)
             db.session.commit()
             flash(f'{user.username}님의 정보가 성공적으로 수정되었습니다.', 'success')
             return redirect(url_for('admin.users'))
@@ -212,7 +212,7 @@ def delete_user(user_id):
         email = user.email
         # 사용자를 삭제하기 전에 로그를 먼저 기록합니다.
         summary = f"사용자 '{username}'(ID:{user_id}, Email:{email}) 계정 삭제."
-        log_action(title="사용자 삭제", summary=summary, target_user_id=user_id)
+        log_action(title="사용자삭제", summary=summary, target_user_id=user_id)
         
         db.session.delete(user)
         db.session.commit()
@@ -239,7 +239,7 @@ def create_user():
             db.session.add(new_user)
             db.session.flush()
             summary = f"신규 사용자 '{new_user.username}'(ID:{new_user.id}, 역할:{new_user.user_type.value}) 생성."
-            log_action(title="사용자 생성", summary=summary, target_user_id=new_user.id)
+            log_action(title="사용자생성", summary=summary, target_user_id=new_user.id)
             db.session.commit()
             flash(f'{new_user.username} 사용자가 성공적으로 생성되었습니다.', 'success')
             return redirect(url_for('admin.users'))
