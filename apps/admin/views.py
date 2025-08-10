@@ -261,27 +261,21 @@ def log_list():
     """
     PER_PAGE = 10
     page = request.args.get('page', 1, type=int)
-    
     # --- 검색 파라미터 ---
     user_id = request.args.get('user_id', '', type=str)
     target_user_id = request.args.get('target_user_id', '', type=str)
     log_title = request.args.get('log_title', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
-
     # 기본 쿼리
     logs_query = Log.query
-
     # --- 필터링 로직 ---
     if user_id:
         logs_query = logs_query.filter(Log.user_id == user_id)
-    
     if target_user_id:
         logs_query = logs_query.filter(Log.target_user_id == target_user_id)
-
     if log_title:
         logs_query = logs_query.filter(Log.log_title.ilike(f'%{log_title}%'))
-
     try:
         if start_date:
             search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -292,7 +286,6 @@ def log_list():
             search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
             end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
             logs_query = logs_query.filter(Log.timestamp <= end_of_day)
-
     except ValueError:
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
         # 잘못된 날짜 값이 들어오면 해당 파라미터를 초기화하여 전체 검색이 되도록 함
