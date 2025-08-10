@@ -19,7 +19,9 @@ class UserLogType(enum.Enum):   # 사용자 로그 구분
       
 class User(db.Model, UserMixin):
     __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
+    # default=lambda: str(uuid.uuid4())를 사용하여 새로운 객체 생성 시 고유한 UUID 자동 할당
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    #id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, index=True)
     email = db.Column(db.String, unique=True, index=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
@@ -75,11 +77,19 @@ class Log(db.Model):
     # 로그를 발생시킨 사용자 (관리자 등)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True, comment="행위를 수행한 사용자 ID")
     # 로그의 대상이 된 사용자
-    target_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True, comment="행위의 대상이 된 사용자 ID")
+    # user_id 컬럼의 타입을 String(36)으로 변경하여 UUID에 맞춥니다.
+    # 이 컬럼은 user 테이블의 id를 외래 키로 참조합니다.
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), index=True, comment="행위를 수행한 사용자 ID")
+
+    # target_user_id 컬럼도 String(36)으로 변경합니다.
+    # 외래 키 제약 조건은 제거되어 user 삭제 시에도 값이 유지됩니다.
+    target_user_id = db.Column(db.String(36), index=True, comment="행위의 대상이 된 사용자 ID")
+    #target_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True, comment="행위의 대상이 된 사용자 ID")
+
     # actor: 이 로그를 만든 사람 (ex. 관리자)
     actor = db.relationship('User', foreign_keys=[user_id], backref='action_logs')
     # target_user: 이 로그의 타깃이 된 사람 (ex. 일반 유저)
-    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_logs')
+    #target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_logs')
    
     endpoint = db.Column(db.String(120), nullable=False)
     log_title = db.Column(db.String(50), nullable=False) # '삭제', '로그인', 'user_type change' 등

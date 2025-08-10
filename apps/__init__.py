@@ -31,7 +31,9 @@ def create_app():   # factory 함수
     from .dbmodels import User  # User 모델 임포트
     @login_manager.user_loader
     def load_user(user_id):   # Flask-Login이 user_id를 기반으로 사용자 객체를 로드
-        return User.query.get(int(user_id))
+        #return User.query.get(int(user_id))
+        # UUID를 사용하므로 int() 변환을 제거합니다.
+        return User.query.get(user_id)
     # Flask-Login: Unauthorized Error 핸들링, login_view와 같은 기능이나, next 값 자동전달
     @login_manager.unauthorized_handler
     def unauthorized():

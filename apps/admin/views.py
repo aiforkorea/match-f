@@ -132,7 +132,7 @@ def users():
         UserType=UserType,           # 템플릿에서 Enum을 사용하기 위해 전달
         filtered_args=filtered_args, # <-- 추가
     )
-@admin.route('/users/<int:user_id>/toggle_active', methods=['POST'])
+@admin.route('/users/<string:user_id>/toggle_active', methods=['POST'])
 @admin_required
 def toggle_user_active(user_id):
     user = User.query.get_or_404(user_id)
@@ -142,15 +142,17 @@ def toggle_user_active(user_id):
     try:
         user.is_active = not user.is_active
         action = "활성" if user.is_active else "비활성"
-        summary = f"'{user.username}'(ID:{user.id}) 계정을 {action} 상태로 변경."
+        #summary = f"'{user.username}'(ID:{user.id}) 계정을 {action} 상태로 변경."
+        summary = f"'{user.username}' 계정을 {action} 상태로 변경."
         log_action(title="계정상태변경", summary=summary, target_user_id=user.id)
+
         db.session.commit()
         flash(f'{user.username} 계정 상태가 {action}으로 변경되었습니다.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'계정 상태 변경 중 오류 발생: {e}', 'danger')
     return redirect(url_for('admin.users', **request.args)) # 기존 검색/필터 조건(request.args) 유지
-@admin.route('/user_type_change/<int:user_id>', methods=['POST'])
+@admin.route('/user_type_change/<string:user_id>', methods=['POST'])
 @admin_required
 def user_type_change(user_id):
     user = User.query.get_or_404(user_id)  # 1. 레코드 조회 
@@ -163,7 +165,8 @@ def user_type_change(user_id):
         try:
             original_type = user.user_type.value
             user.user_type = UserType(new_user_type_str)
-            summary = f"'{user.username}'(ID:{user.id}) 역할을 '{original_type}'에서 '{new_user_type_str}'(으)로 변경."
+            #summary = f"'{user.username}'(ID:{user.id}) 역할을 '{original_type}'에서 '{new_user_type_str}'(으)로 변경."
+            summary = f"'{user.username}' 역할을 '{original_type}'에서 '{new_user_type_str}'(으)로 변경."
             log_action(title="사용자역할변경", summary=summary, target_user_id=user.id)
             db.session.commit()
             flash(f'사용자 역할 변경이 성공적으로 처리되었습니다.', 'success')
@@ -173,7 +176,7 @@ def user_type_change(user_id):
     else:
         flash('유효하지 않은 사용자 역할입니다.', 'danger')
     return redirect(url_for('admin.users', **request.args))
-@admin.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@admin.route('/users/<string:user_id>/edit', methods=['GET', 'POST'])
 @admin_required
 def edit_user(user_id):
     user = User.query.get_or_404(user_id)
@@ -184,7 +187,8 @@ def edit_user(user_id):
             original_email = user.email
             user.username = form.username.data
             user.email = form.email.data
-            summary = f"'{original_username}'(ID:{user.id}) 정보 변경. "
+            #summary = f"'{original_username}'(ID:{user.id}) 정보 변경. "
+            summary = f"'{original_username}' 정보 변경. "
             if original_username != user.username:
                 summary += f"이름: '{original_username}'->'{user.username}'. "
             if original_email != user.email:
@@ -200,7 +204,7 @@ def edit_user(user_id):
     form.username.data = user.username
     form.email.data = user.email
     return render_template('admin/edit_user.html', title=f'{user.username} 수정', form=form, user=user)
-@admin.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin.route('/users/<string:user_id>/delete', methods=['POST'])
 @admin_required
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
@@ -212,7 +216,8 @@ def delete_user(user_id):
         username = user.username
         email = user.email
         # 사용자를 삭제하기 전에 로그를 먼저 기록합니다.
-        summary = f"사용자 '{username}'(ID:{user_id}, Email:{email}) 계정 삭제."
+        #summary = f"사용자 '{username}'(ID:{user_id}, Email:{email}) 계정 삭제."
+        summary = f"사용자 '{username}', Email:{email}) 계정 삭제."
         log_action(title="사용자삭제", summary=summary, target_user_id=user_id)
         
         db.session.delete(user)
@@ -239,7 +244,8 @@ def create_user():
             )
             db.session.add(new_user)
             db.session.flush()
-            summary = f"신규 사용자 '{new_user.username}'(ID:{new_user.id}, 역할:{new_user.user_type.value}) 생성."
+            #summary = f"신규 사용자 '{new_user.username}'(ID:{new_user.id}, 역할:{new_user.user_type.value}) 생성."
+            summary = f"신규 사용자 '{new_user.username}', 역할:{new_user.user_type.value}) 생성."
             log_action(title="사용자생성", summary=summary, target_user_id=new_user.id)
             db.session.commit()
             flash(f'{new_user.username} 사용자가 성공적으로 생성되었습니다.', 'success')
@@ -319,71 +325,3 @@ def log_list():
             'end_date': end_date
         }
     )
-
-
-
-"""
-# ==============================================================================
-# ### 로그 조회 관련 ###
-# ==============================================================================
-@admin.route('/logs', methods=['GET'])
-@admin_required
-def log_list():
-    PER_PAGE = 10
-    page = request.args.get('page', 1, type=int)
-    # --- 검색 파라미터 ---
-    user_id = request.args.get('user_id', '', type=str)
-    target_user_id = request.args.get('target_user_id', '', type=str)
-    log_title = request.args.get('log_title', '', type=str)
-    start_date = request.args.get('start_date', '', type=str)
-    end_date = request.args.get('end_date', '', type=str)
-    # 기본 쿼리
-    logs_query = Log.query
-    # --- 필터링 로직 ---
-    if user_id:
-        logs_query = logs_query.filter(Log.user_id == user_id)
-    if target_user_id:
-        logs_query = logs_query.filter(Log.target_user_id == target_user_id)
-    if log_title:
-        logs_query = logs_query.filter(Log.log_title.ilike(f'%{log_title}%'))
-    try:
-        if start_date:
-            search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
-            logs_query = logs_query.filter(Log.timestamp >= start_of_day)
-        
-        if end_date:
-            search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-            end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
-            logs_query = logs_query.filter(Log.timestamp <= end_of_day)
-    except ValueError:
-        flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
-        # 잘못된 날짜 값이 들어오면 해당 파라미터를 초기화하여 전체 검색이 되도록 함
-        start_date = ""
-        end_date = ""
-
-    # 페이지네이션 적용
-    logs_pagination = logs_query.order_by(Log.timestamp.desc()).paginate(
-        page=page, per_page=PER_PAGE, error_out=False
-    )
-
-    # 페이지네이션 링크에 현재 검색 인자들을 유지하기 위해 딕셔너리 생성
-    filtered_args = request.args.to_dict(flat=True)
-    filtered_args.pop('page', None)
-
-    return render_template(
-        'admin/logs.html',
-        title='로그 조회',
-        logs=logs_pagination.items,
-        pagination=logs_pagination,
-        filtered_args=filtered_args,
-        # 템플릿에서 현재 검색 값을 유지하기 위해 전달
-        search_params={
-            'user_id': user_id,
-            'target_user_id': target_user_id,
-            'log_title': log_title,
-            'start_date': start_date,
-            'end_date': end_date
-        }
-    )
-"""    
