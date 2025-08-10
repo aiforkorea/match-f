@@ -2,7 +2,8 @@
 import datetime
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, cast, String
+from sqlalchemy.orm import joinedload
 # --- WTForms Imports ---
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, BooleanField, SubmitField
@@ -11,7 +12,7 @@ from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
 from apps.admin.forms import CreateUserForm, EditUserForm
 
 from . import admin
-from apps.dbmodels import Log, User, UserType
+from apps.dbmodels import Log, User, UserLogType, UserType
 from apps.decorators import admin_required
 from apps.extensions import db
 from werkzeug.security import generate_password_hash # 비밀번호 해싱을 위해 사용
@@ -248,17 +249,86 @@ def create_user():
             flash(f'사용자 생성 중 오류가 발생했습니다: {e}', 'danger')
     return render_template('admin/create_user.html', title='사용자 생성', form=form)
 
+@admin.route('/logs', methods=['GET'])
+@admin_required
+def log_list():
+    PER_PAGE = 10
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search_query', '', type=str)
+    log_title_query = request.args.get('log_title_query', '', type=str)
+    start_date = request.args.get('start_date', '', type=str)
+    end_date = request.args.get('end_date', '', type=str)
+
+    # [FIXED] N+1 문제를 방지하기 위해 joinedload로 'actor' 정보를 함께 가져옵니다.
+    logs_query = Log.query.options(joinedload(Log.actor))
+
+    # 검색 기능
+    # [수정] 검색 기능 로직을 if 블록 안으로 완전히 이동
+    # 1. 일반 검색어 필터링
+    if search_query:
+        search_filter = or_(
+            cast(Log.user_id, String).ilike(f'%{search_query}%'),
+            cast(Log.target_user_id, String).ilike(f'%{search_query}%'),
+            Log.endpoint.ilike(f'%{search_query}%'),
+            Log.log_title.ilike(f'%{search_query}%'),
+            Log.log_summary.ilike(f'%{search_query}%'),
+            # actor의 username으로 검색하기 위해 Log.actor 관계를 통해 join
+            User.username.ilike(f'%{search_query}%')
+        )
+        # join과 filter를 if 블록 안에서만 실행
+        logs_query = logs_query.join(Log.actor).filter(search_filter)
+
+    # 2. [추가] 로그 제목 필터링
+    if log_title_query:
+        logs_query = logs_query.filter(Log.log_title == log_title_query)
+    # 3. 날짜 필터링
+    try:
+        if start_date:
+            search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
+            logs_query = logs_query.filter(Log.timestamp >= start_of_day)
+        
+        if end_date:
+            search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
+            logs_query = logs_query.filter(Log.timestamp <= end_of_day)
+    except ValueError:
+        flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
+        start_date = ""
+        end_date = ""
+
+    logs_pagination = logs_query.order_by(Log.timestamp.desc()).paginate(
+        page=page, per_page=PER_PAGE, error_out=False
+    )
+
+    filtered_args = request.args.to_dict(flat=True)
+    filtered_args.pop('page', None)
+
+    return render_template(
+        'admin/logs.html',
+        title='로그 조회',
+        logs=logs_pagination.items,
+        pagination=logs_pagination,
+        filtered_args=filtered_args,
+        UserLogType=UserLogType, # 템플릿에 UserLogType Enum을 전달해야 합니다.
+        log_title_query=log_title_query, # 템플릿에 log_title_query를 전달
+        search_params={
+            'search_query': search_query, # search_query도 전달하는 것이 좋습니다.
+            'log_title_query': log_title_query,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+    )
+
+
+
+"""
 # ==============================================================================
 # ### 로그 조회 관련 ###
 # ==============================================================================
 @admin.route('/logs', methods=['GET'])
 @admin_required
 def log_list():
-    """
-    관리자 페이지에서 로그를 조회하고 검색하는 뷰 함수입니다.
-    - 사용자 ID, 대상 사용자 ID, 로그 제목, 기간으로 필터링할 수 있습니다.
-    - 검색 결과는 페이지네이션으로 처리됩니다.
-    """
     PER_PAGE = 10
     page = request.args.get('page', 1, type=int)
     # --- 검색 파라미터 ---
@@ -316,3 +386,4 @@ def log_list():
             'end_date': end_date
         }
     )
+"""    
