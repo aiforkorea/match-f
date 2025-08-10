@@ -9,7 +9,14 @@ class UserType(enum.Enum):   # 사용자 구분(순서중요)
     USER = 'user'
     EXPERT = 'expert'
     ADMIN = 'admin'
-  
+
+class UserLogType(enum.Enum):   # 사용자 로그 구분
+    ACCOUNT_STATUS_CHANGE="계정상태변경"
+    USER_ROLE_CHANGE="사용자역할변경"
+    USER_INFO_MODIFY="사용자정보수정"
+    USER_ERASE="사용자삭제"
+    USER_CREATE="사용자생성"
+      
 class User(db.Model, UserMixin):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
