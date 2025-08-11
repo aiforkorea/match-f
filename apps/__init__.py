@@ -45,11 +45,11 @@ def create_app():   # factory 함수
     @app.context_processor
     def inject_user_type():
         return {'UserType': UserType}
+    # UserLogType 도 추가해야 하는지 검토
     # 블루프린트 등록  -- admin 모듈이 없으므로 현재 오류 발생(admin 설치후 오류 없어짐)
     from .main import main
     from .auth import auth
     from .admin import admin
-
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(admin, url_prefix='/admin')
@@ -61,7 +61,6 @@ def create_app():   # factory 함수
         admin_username = app.config.get('ADMIN_USERNAME')
         admin_email = app.config.get('ADMIN_EMAIL')
         admin_password = app.config.get('ADMIN_PASSWORD')
-
         if admin_username and admin_password:
             admin_user = User.query.filter_by(username=admin_username).first()
             if not admin_user:
