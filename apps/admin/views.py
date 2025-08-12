@@ -10,9 +10,7 @@ from sqlalchemy.orm import joinedload
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
-
 from apps.admin.forms import CreateUserForm, EditUserForm
-
 from . import admin
 from apps.dbmodels import Log, User, UserLogType, UserType
 from apps.decorators import admin_required
@@ -331,16 +329,13 @@ def log_list():
 @admin.route('/logs/download-csv', methods=['GET'])
 @admin_required
 def logs_download_csv():
-
     # 1. 검색 쿼리 패러미터
     search_query = request.args.get('search_query', '', type=str)
     log_title_query = request.args.get('log_title_query', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
-
     # 2. [FIXED] N+1 문제를 방지하기 위해 joinedload로 'actor' 정보를 함께 가져옵니다.
     logs_query = Log.query.options(joinedload(Log.actor))
-
     # 3. 검색 기능
     # [수정] 검색 기능 로직을 if 블록 안으로 완전히 이동
     # 3.1 일반 검색어 필터링
@@ -356,7 +351,6 @@ def logs_download_csv():
         )
         # join과 filter를 if 블록 안에서만 실행
         logs_query = logs_query.join(Log.actor).filter(search_filter)
-
     # 3.2 [추가] 로그 제목 필터링
     if log_title_query:
         logs_query = logs_query.filter(Log.log_title == log_title_query)
@@ -366,7 +360,6 @@ def logs_download_csv():
             search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
             logs_query = logs_query.filter(Log.timestamp >= start_of_day)
-        
         if end_date:
             search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
             end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
@@ -375,19 +368,15 @@ def logs_download_csv():
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
         start_date = ""
         end_date = ""
-
     # 4. 쿼리 실행(검색한 모든 결과 가져오기)
     logs_results = logs_query.order_by(Log.timestamp.desc()).all()
-
     # 5. CSV 데이터 생성
     # StringIO만 사용하고, 최종 결과를 utf-8-sig로 인코딩합니다.
     si = StringIO()
     cw = csv.writer(si)
-
     # 6. CSV 헤더(컬럼이름)
     headers = [ 'ID', '사용자(ID)', '대상(ID)', '엔드포인트', '로그제목', '내용요약', '타임스탬프' ]
     cw.writerow(headers)
-
     # 7. 데이터 행 추가
     for logs_result in logs_results:
         # timestamp를 문자열로 변환하고 작은따옴표로 감싸서 엑셀이 텍스트로 인식하게 합니다.
@@ -402,19 +391,15 @@ def logs_download_csv():
             timestamp_str                        
         ]        
         cw.writerow(row)
-
     # StringIO의 내용을 가져와서 utf-8-sig로 인코딩합니다.
     output_str = si.getvalue()
     output_bytes = output_str.encode('utf-8-sig')
     si.close()
-
     # csv 파일을 응답으로 반환
     # Response 객체에 인코딩된 바이트 데이터를 전달합니다.
     response = Response(output_bytes, mimetype='text/csv; charset=utf-8-sig')
-
     # from datetime import datetime
     response.headers['Content-Disposition'] = f'attachment; filename=iris_results_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
-   
     return response
 
 
