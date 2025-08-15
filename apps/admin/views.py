@@ -1,6 +1,6 @@
 # apps/admin/views.py
 import csv
-from datetime import datetime
+from datetime import datetime, time
 from io import BytesIO, StringIO
 from flask import Response, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -106,9 +106,9 @@ def users():
         try:
             # Parse the date string. We want to filter for users created ON that specific date.
             # So, from the start of that day up to the end of that day.
-            search_date = datetime.datetime.strptime(created_at_query, '%Y-%m-%d').date()
-            start_of_day = datetime.datetime.combine(search_date, datetime.time.min)
-            end_of_day = datetime.datetime.combine(search_date, datetime.time.max)
+            search_date = datetime.strptime(created_at_query, '%Y-%m-%d').date()
+            start_of_day = datetime.combine(search_date, time.min)
+            end_of_day = datetime.combine(search_date, time.max)
             users_query = users_query.filter(User.created_at >= start_of_day, User.created_at <= end_of_day)
             #users_query = users_query.filter(User.created_at.between(start_of_day, end_of_day))
         except ValueError:
@@ -290,13 +290,13 @@ def log_list():
     # 3. 날짜 필터링
     try:
         if start_date:
-            search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
+            search_start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_of_day = datetime.combine(search_start_date, time.min)
             logs_query = logs_query.filter(Log.timestamp >= start_of_day)
         
         if end_date:
-            search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-            end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
+            search_end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_of_day = datetime.combine(search_end_date, time.max)
             logs_query = logs_query.filter(Log.timestamp <= end_of_day)
     except ValueError:
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
@@ -357,12 +357,12 @@ def logs_download_csv():
     # 3. 날짜 필터링
     try:
         if start_date:
-            search_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            start_of_day = datetime.datetime.combine(search_start_date, datetime.time.min)
+            search_start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            start_of_day = datetime.combine(search_start_date, time.min)
             logs_query = logs_query.filter(Log.timestamp >= start_of_day)
         if end_date:
-            search_end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-            end_of_day = datetime.datetime.combine(search_end_date, datetime.time.max)
+            search_end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_of_day = datetime.combine(search_end_date, time.max)
             logs_query = logs_query.filter(Log.timestamp <= end_of_day)
     except ValueError:
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
