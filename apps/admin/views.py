@@ -1,5 +1,5 @@
 # apps/admin/views.py
-import csv
+import csv, logging
 from datetime import datetime, time
 from io import BytesIO, StringIO
 from flask import Response, current_app, flash, redirect, render_template, request, url_for
@@ -340,6 +340,8 @@ def log_list():
 @admin.route('/logs/download-csv', methods=['GET'])
 @admin_required
 def logs_download_csv():
+    # logging
+    current_app.logger.debug("Starting: %s", "download")
     # 1. 검색 쿼리 패러미터
     search_query = request.args.get('search_query', '', type=str)
     log_title_query = request.args.get('log_title_query', '', type=str)
@@ -347,8 +349,7 @@ def logs_download_csv():
     end_date = request.args.get('end_date', '', type=str)
 
     # 2. [수정] N+1 문제 방지 및 안정성 확보를 위해 joinedload와 join을 분리
-    #    'actor' 정보는 검색 조건과 무관하게 항상 조인하여 가져옵니다.
-    logs_query = Log.query.join(Log.actor).options(joinedload(Log.actor))
+    logs_query = Log.query.options(joinedload(Log.actor))
 
     # 3. 검색 기능
     # 3.1 일반 검색어 필터링
@@ -361,8 +362,9 @@ def logs_download_csv():
             Log.log_summary.ilike(f'%{search_query}%'),
             User.username.ilike(f'%{search_query}%')
         )
-        logs_query = logs_query.filter(search_filter)
-
+        # join은 search_query에 사용자 이름이 포함된 경우에만 추가합니다.
+        logs_query = logs_query.join(Log.actor).filter(search_filter)
+    
     # 3.2 로그 제목 필터링
     if log_title_query:
         logs_query = logs_query.filter(Log.log_title == log_title_query)
@@ -379,8 +381,15 @@ def logs_download_csv():
             logs_query = logs_query.filter(Log.timestamp <= end_of_day)
     except ValueError:
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
-        start_date = ""
-        end_date = ""
+        # 오류 발생 시 필터링을 중단하고 페이지를 리디렉션합니다.
+        return redirect(url_for('admin.log_list', **request.args))
+
+    current_url = request.url
+    # logging
+    current_app.logger.debug("CSV 다운로드 요청 URL: %s", current_url)
+    # 현재 URL에서 쿼리 파라미터(필터링 조건) 추출
+    search_params = request.args.to_dict()
+    current_app.logger.debug("CSV 다운로드 필터링 조건: %s", search_params)
 
     # 4. 쿼리 실행(검색한 모든 결과 가져오기)
     logs_results = logs_query.order_by(Log.timestamp.desc()).all()
@@ -414,5 +423,5 @@ def logs_download_csv():
 
     # csv 파일을 응답으로 반환
     response = Response(output_bytes, mimetype='text/csv; charset=utf-8-sig')
-    response.headers['Content-Disposition'] = f'attachment; filename=iris_results_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=userlog_results_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
     return response
