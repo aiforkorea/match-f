@@ -347,10 +347,8 @@ def logs_download_csv():
     log_title_query = request.args.get('log_title_query', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
-
     # 2. [수정] N+1 문제 방지 및 안정성 확보를 위해 joinedload와 join을 분리
     logs_query = Log.query.options(joinedload(Log.actor))
-
     # 3. 검색 기능
     # 3.1 일반 검색어 필터링
     if search_query:
@@ -364,11 +362,9 @@ def logs_download_csv():
         )
         # join은 search_query에 사용자 이름이 포함된 경우에만 추가합니다.
         logs_query = logs_query.join(Log.actor).filter(search_filter)
-    
     # 3.2 로그 제목 필터링
     if log_title_query:
         logs_query = logs_query.filter(Log.log_title == log_title_query)
-
     # 3.3 날짜 필터링
     try:
         if start_date:
@@ -383,25 +379,20 @@ def logs_download_csv():
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
         # 오류 발생 시 필터링을 중단하고 페이지를 리디렉션합니다.
         return redirect(url_for('admin.log_list', **request.args))
-
     current_url = request.url
     # logging
     current_app.logger.debug("CSV 다운로드 요청 URL: %s", current_url)
     # 현재 URL에서 쿼리 파라미터(필터링 조건) 추출
     search_params = request.args.to_dict()
     current_app.logger.debug("CSV 다운로드 필터링 조건: %s", search_params)
-
     # 4. 쿼리 실행(검색한 모든 결과 가져오기)
     logs_results = logs_query.order_by(Log.timestamp.desc()).all()
-
     # 5. CSV 데이터 생성
     si = StringIO()
     cw = csv.writer(si)
-
     # 6. CSV 헤더(컬럼이름)
     headers = ['ID', '사용자(ID)', '대상(ID)', '엔드포인트', '로그제목', '내용요약', '타임스탬프']
     cw.writerow(headers)
-
     # 7. 데이터 행 추가
     for logs_result in logs_results:
         timestamp_str = f"'{logs_result.timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')}"
@@ -415,12 +406,10 @@ def logs_download_csv():
             timestamp_str
         ]
         cw.writerow(row)
-
     # StringIO의 내용을 가져와서 utf-8-sig로 인코딩합니다.
     output_str = si.getvalue()
     output_bytes = output_str.encode('utf-8-sig')
     si.close()
-
     # csv 파일을 응답으로 반환
     response = Response(output_bytes, mimetype='text/csv; charset=utf-8-sig')
     response.headers['Content-Disposition'] = f'attachment; filename=userlog_results_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'

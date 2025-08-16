@@ -6,9 +6,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from apps.extensions import db
 
 class UserType(enum.Enum):  # 사용자 구분(순서 중요)
-    USER = 'user'
-    EXPERT = 'expert'
-    ADMIN = 'admin'
+    USER = "user"
+    EXPERT = "expert"
+    ADMIN = "admin"
 
 class UserLogType(enum.Enum):  # 사용자 로그 구분
     ACCOUNT_STATUS_CHANGE = "계정상태변경"
@@ -40,25 +40,19 @@ class User(db.Model, UserMixin):
     @property
     def password(self):
         raise AttributeError('password is not a readable attribute')
-
     @password.setter
     def password(self, password):
         self.password_hash = generate_password_hash(password)
-
     def verify_password(self, password):
         if self.password_hash is None:
             return False
         return check_password_hash(self.password_hash, password)
-
     def is_admin(self):
         return self.user_type == UserType.ADMIN
-
     def is_expert(self):
         return self.user_type == UserType.EXPERT
-
     def is_user(self):
         return self.user_type == UserType.USER
-
     # [수정] 이메일 중복 체크 로직 수정
     def is_duplicate_email(self):
         query = User.query.filter_by(email=self.email)
@@ -67,7 +61,6 @@ class User(db.Model, UserMixin):
         if self.id:
             query = query.filter(User.id != self.id)
         return query.first() is not None
-
     def soft_delete(self):
         """
         사용자를 soft-delete 처리합니다.
@@ -76,7 +69,6 @@ class User(db.Model, UserMixin):
         """
         self.is_deleted = True
         self.is_active = False
-
     def __repr__(self):
         return f'<User {self.username}>'
 
