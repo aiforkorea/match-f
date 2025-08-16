@@ -35,7 +35,8 @@ def log_action(title, summary, target_user_id=None, status_code=200):
 @admin.route('/dashboard')
 @admin_required
 def dashboard():
-    total_users = User.query.count()
+    #total_users = User.query.count()
+    total_users = User.query.filter(User.is_deleted == False).count()
     total_services = 3  # AIService.query.count()
     pending_subscriptions = 4 # Subscription.query.filter_by(status='pending').count()
     
@@ -67,7 +68,8 @@ def users():
     is_active_query = request.args.get('is_active', '', type=str) # 'true', 'false', or ''
     created_at_query = request.args.get('created_at', '', type=str) # YYYY-MM-DD format
     # ---------------------------
-    users_query = User.query
+    # [수정] users_query = User.query 기본 쿼리에 is_deleted == False 조건을 추가합니다.
+    users_query = User.query.filter(User.is_deleted == False)
     # logging
     current_app.logger.debug("users_query: %s", users_query)
 
@@ -135,7 +137,9 @@ def users():
 @admin.route('/users/<string:user_id>/toggle_active', methods=['POST'])
 @admin_required
 def toggle_user_active(user_id):
-    user = User.query.get_or_404(user_id)
+    # [수정]     user = User.query.get_or_404(user_id)의 get_or_404를 filter_by와 first_or_404로 변경하여 삭제된 사용자는 조회되지 않게 함
+    user = User.query.filter_by(id=user_id, is_deleted=False).first_or_404()
+
     if user.id == current_user.id:
         flash('자신의 계정 상태는 변경할 수 없습니다.', 'warning')
         return redirect(url_for('admin.users'))
@@ -155,7 +159,9 @@ def toggle_user_active(user_id):
 @admin.route('/user_type_change/<string:user_id>', methods=['POST'])
 @admin_required
 def user_type_change(user_id):
-    user = User.query.get_or_404(user_id)  # 1. 레코드 조회 
+    # user = User.query.get_or_404(user_id)의 get_or_404를 filter_by와 first_or_404로 변경
+    # 1. 레코드 조회 
+    user = User.query.filter_by(id=user_id, is_deleted=False).first_or_404()
     print(f"user: {user}")   # log 사용
     if user.id == current_user.id:
         flash('자신의 관리자 권한은 변경할 수 없습니다.', 'warning')
@@ -179,7 +185,8 @@ def user_type_change(user_id):
 @admin.route('/users/<string:user_id>/edit', methods=['GET', 'POST'])
 @admin_required
 def edit_user(user_id):
-    user = User.query.get_or_404(user_id)
+    # [수정] user = User.query.get_or_404(user_id)의 get_or_404를 filter_by와 first_or_404로 변경
+    user = User.query.filter_by(id=user_id, is_deleted=False).first_or_404()
     form = EditUserForm(original_user=user)
     if form.validate_on_submit():
         try:
@@ -207,27 +214,31 @@ def edit_user(user_id):
 @admin.route('/users/<string:user_id>/delete', methods=['POST'])
 @admin_required
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
+    # [수정] user = User.query.get_or_404(user_id)의 get_or_404를 filter_by와 first_or_404로 변경
+    user = User.query.filter_by(id=user_id, is_deleted=False).first_or_404()
     if user.id == current_user.id:
         flash('자신의 계정은 삭제할 수 없습니다.', 'warning')
-        return redirect(url_for('admin.users'))
-
+        return redirect(url_for('admin.users', **request.args))
+    # 이미 삭제된 사용자인지 확인
+    if user.is_deleted:
+        flash(f'이미 삭제된 사용자입니다.', 'info')
+        return redirect(url_for('admin.users', **request.args))
     try:
-        username = user.username
-        email = user.email
-        # 사용자를 삭제하기 전에 로그를 먼저 기록합니다.
-        #summary = f"사용자 '{username}'(ID:{user_id}, Email:{email}) 계정 삭제."
-        summary = f"사용자 '{username}', Email:{email}) 계정 삭제."
-        log_action(title="사용자삭제", summary=summary, target_user_id=user_id)
-        
-        db.session.delete(user)
+        # User 모델에 정의된 soft_delete 메서드 호출 (아래 추가 제안 참조)
+        # 이 메서드가 없다면 AttributeError가 발생합니다.
+        user.soft_delete() 
+        summary = f"'{user.username}' 계정을 삭제 처리."
+        log_action(title="사용자삭제", summary=summary, target_user_id=user.id)
         db.session.commit()
-        flash(f'{username} 계정이 성공적으로 삭제되었습니다.', 'success')
+        flash(f'{user.username} 계정이 성공적으로 삭제 처리되었습니다.', 'success')
+    except AttributeError:
+        db.session.rollback()
+        flash(f'soft_delete 메서드가 User 모델에 정의되지 않았습니다.', 'danger')
     except Exception as e:
         db.session.rollback()
         flash(f'사용자 삭제 중 오류가 발생했습니다: {e}', 'danger')
-
     return redirect(url_for('admin.users', **request.args))
+
 @admin.route('/users/create', methods=['GET', 'POST'])
 @admin_required
 def create_user():
@@ -245,7 +256,7 @@ def create_user():
             db.session.add(new_user)
             db.session.flush()
             #summary = f"신규 사용자 '{new_user.username}'(ID:{new_user.id}, 역할:{new_user.user_type.value}) 생성."
-            summary = f"신규 사용자 '{new_user.username}', 역할:{new_user.user_type.value}) 생성."
+            summary = f"신규 사용자 '{new_user.username}', 역할:{new_user.user_type.value} 생성."
             log_action(title="사용자생성", summary=summary, target_user_id=new_user.id)
             db.session.commit()
             flash(f'{new_user.username} 사용자가 성공적으로 생성되었습니다.', 'success')
@@ -334,10 +345,12 @@ def logs_download_csv():
     log_title_query = request.args.get('log_title_query', '', type=str)
     start_date = request.args.get('start_date', '', type=str)
     end_date = request.args.get('end_date', '', type=str)
-    # 2. [FIXED] N+1 문제를 방지하기 위해 joinedload로 'actor' 정보를 함께 가져옵니다.
-    logs_query = Log.query.options(joinedload(Log.actor))
+
+    # 2. [수정] N+1 문제 방지 및 안정성 확보를 위해 joinedload와 join을 분리
+    #    'actor' 정보는 검색 조건과 무관하게 항상 조인하여 가져옵니다.
+    logs_query = Log.query.join(Log.actor).options(joinedload(Log.actor))
+
     # 3. 검색 기능
-    # [수정] 검색 기능 로직을 if 블록 안으로 완전히 이동
     # 3.1 일반 검색어 필터링
     if search_query:
         search_filter = or_(
@@ -346,15 +359,15 @@ def logs_download_csv():
             Log.endpoint.ilike(f'%{search_query}%'),
             Log.log_title.ilike(f'%{search_query}%'),
             Log.log_summary.ilike(f'%{search_query}%'),
-            # actor의 username으로 검색하기 위해 Log.actor 관계를 통해 join
             User.username.ilike(f'%{search_query}%')
         )
-        # join과 filter를 if 블록 안에서만 실행
-        logs_query = logs_query.join(Log.actor).filter(search_filter)
-    # 3.2 [추가] 로그 제목 필터링
+        logs_query = logs_query.filter(search_filter)
+
+    # 3.2 로그 제목 필터링
     if log_title_query:
         logs_query = logs_query.filter(Log.log_title == log_title_query)
-    # 3. 날짜 필터링
+
+    # 3.3 날짜 필터링
     try:
         if start_date:
             search_start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -368,38 +381,38 @@ def logs_download_csv():
         flash('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.', 'warning')
         start_date = ""
         end_date = ""
+
     # 4. 쿼리 실행(검색한 모든 결과 가져오기)
     logs_results = logs_query.order_by(Log.timestamp.desc()).all()
+
     # 5. CSV 데이터 생성
-    # StringIO만 사용하고, 최종 결과를 utf-8-sig로 인코딩합니다.
     si = StringIO()
     cw = csv.writer(si)
+
     # 6. CSV 헤더(컬럼이름)
-    headers = [ 'ID', '사용자(ID)', '대상(ID)', '엔드포인트', '로그제목', '내용요약', '타임스탬프' ]
+    headers = ['ID', '사용자(ID)', '대상(ID)', '엔드포인트', '로그제목', '내용요약', '타임스탬프']
     cw.writerow(headers)
+
     # 7. 데이터 행 추가
     for logs_result in logs_results:
-        # timestamp를 문자열로 변환하고 작은따옴표로 감싸서 엑셀이 텍스트로 인식하게 합니다.
         timestamp_str = f"'{logs_result.timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')}"
-        row=[
+        row = [
             logs_result.id,
             logs_result.user_id,
             logs_result.target_user_id,
             logs_result.endpoint,
             logs_result.log_title,
             logs_result.log_summary,
-            timestamp_str                        
-        ]        
+            timestamp_str
+        ]
         cw.writerow(row)
+
     # StringIO의 내용을 가져와서 utf-8-sig로 인코딩합니다.
     output_str = si.getvalue()
     output_bytes = output_str.encode('utf-8-sig')
     si.close()
+
     # csv 파일을 응답으로 반환
-    # Response 객체에 인코딩된 바이트 데이터를 전달합니다.
     response = Response(output_bytes, mimetype='text/csv; charset=utf-8-sig')
-    # from datetime import datetime
     response.headers['Content-Disposition'] = f'attachment; filename=iris_results_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
     return response
-
-

@@ -42,8 +42,7 @@
             </div>
         </div>
         <div class="d-flex justify-content-end flex-shrink-0">
-            {# <a href="#" class="btn btn-success">  #}
-            <a href="{{ url_for('admin.logs_download_csv',search_query=search_query, log_title_query=log_title_query, start_date=start_date,end_date=end_date) }}" class="btn btn-success"> 
+            <a href="{{ url_for('admin.logs_download_csv') }}?{{ request.query_string|safe }}" class="btn btn-success">
                 <i class="fas fa-plus"></i> 다운로드
             </a>
         </div>
