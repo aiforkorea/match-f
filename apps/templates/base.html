@@ -21,8 +21,7 @@
                 </li>
                 {% if current_user.is_authenticated %} {# 로그인된 사용자에게만 보이는 메뉴 #}
                     <li class="nav-item">
-{#                        <a class="nav-link" href="{{ url_for('mypagex.dashboard') }}">마이페이지</a>  #}
-{#                     <a class="nav-link" href="{{ url_for('user.mypage') }}">마이페이지</a>   #}
+                        <a class="nav-link" href="{{ url_for('mypage.dashboard') }}">마이페이지</a>  
                     </li>
                     {% if current_user.user_type==UserType.ADMIN %} {# 관리자에게만 보이는 메뉴 #}
                         <li class="nav-item">
@@ -73,5 +72,6 @@
     </div>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>   {# 복사 자바스크립트 실행용 #}
 {% block scripts %}{% endblock %} {# 추가적인 script (JS)를 위한 블록 #}
 </body></html>

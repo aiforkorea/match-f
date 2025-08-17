@@ -5,7 +5,7 @@ from flask import Flask
 from werkzeug.security import generate_password_hash
 from .extensions import db, migrate, login_manager, csrf
 from .config import Config
-from apps.dbmodels import UserType, User
+from apps.dbmodels import UsageType, UserType, User
 
 # 전역 변수/인스턴스 초기화 (extensions.py에서 정의)
 def create_app():   # factory 함수
@@ -31,9 +31,9 @@ def create_app():   # factory 함수
     from .dbmodels import User  # User 모델 임포트
     @login_manager.user_loader
     def load_user(user_id):   # Flask-Login이 user_id를 기반으로 사용자 객체를 로드
-        #return User.query.get(int(user_id))
-        # UUID를 사용하므로 int() 변환을 제거합니다.
-        return User.query.get(user_id)
+        return User.query.get(int(user_id))
+        # UUID를 사용시 int() 변환을 제거합니다.
+        # return User.query.get(user_id)
     # Flask-Login: Unauthorized Error 핸들링, login_view와 같은 기능이나, next 값 자동전달
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -45,22 +45,34 @@ def create_app():   # factory 함수
     @app.context_processor
     def inject_user_type():
         return {'UserType': UserType}
+
     # UserLogType 도 추가해야 하는지 검토
-    # 블루프린트 등록  -- admin 모듈이 없으므로 현재 오류 발생(admin 설치후 오류 없어짐)
+
+    # 모든 템플릿에 "UsageType" 변수를 추가합니다.
+    @app.context_processor
+    def inject_usage_type():
+        return {"UsageType": UsageType}
+
+    # 블루프린트 등록  -- mypage모듈이 없으므로 현재 오류 발생(mypage 설치후 오류 없어짐)
     from .main import main
     from .auth import auth
     from .admin import admin
+    from .mypage import mypage
+
     app.register_blueprint(main)
-    app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(admin, url_prefix='/admin')
+    app.register_blueprint(auth, url_prefix="/auth")
+    app.register_blueprint(admin, url_prefix="/admin")
+    app.register_blueprint(mypage, url_prefix="/mypage")
+
     # db 테이블 생성 및 관리자 초기계정 생성
     with app.app_context():
-        db.drop_all()         # 운영시에는 커멘트 처리 필요
+        #db.drop_all()         # 운영시에는 커멘트 처리 필요
         db.create_all()       # 테이블 생성
         # 최초 관리자 계정 생성
         admin_username = app.config.get('ADMIN_USERNAME')
         admin_email = app.config.get('ADMIN_EMAIL')
         admin_password = app.config.get('ADMIN_PASSWORD')
+
         if admin_username and admin_password:
             admin_user = User.query.filter_by(username=admin_username).first()
             if not admin_user:
