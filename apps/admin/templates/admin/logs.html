@@ -1,41 +1,36 @@
 {# apps/admin/templates/admin/logs.html #}
 {% extends "base.html" %}
-{% from "_macros.html" import render_pagination %}
+{% from "_macros.html" import render_pagination %}   {# 파일명 및 macro import 수정됨 #}
+
 {% block content %}
 <div class="container-fluid">
     <h5 class="mb-1">로그 검색</h5>
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4">
         <div class="card flex-grow-1 me-lg-3 mb-3 mb-lg-0">
             <div class="card-body">
-                <form method="GET" action="{{ url_for('admin.log_list') }}" class="row g-2 align-items-lg-center">
+                <form method="POST" action="{{ url_for('admin.log_list') }}" class="row g-2 align-items-lg-center">
+                    {{ form.csrf_token }} 
                     <div class="col-12 col-md-4 col-lg-4">
-                        <label for="search_query" class="visually-hidden">검색</label>
-                        <input type="search" name="search_query" id="search_query" class="form-control form-control-sm"
-                               placeholder="ID, 대상ID, 로그제목, 엔드포인트, 타이틀, 내용 입력" value="{{ search_params.search_query or '' }}">
+                        {{ form.keyword.label(class="visually-hidden") }}
+                        {{ form.keyword(class="form-control form-control-sm", type="search", placeholder="키워드 입력") }}
                     </div>
                     <div class="col-12 col-md-4 col-lg-2">
-                        <label for="log_title_query" class="visually-hidden">로그 제목</label>
-                        <select class="form-select form-select-sm" name="log_title_query" id="log_title_query">
-                            <option value="">모든 제목</option>
-                            {% for type in UserLogType %}
-                            <option value="{{ type.value }}" {% if log_title_query==type.value %}selected{% endif %}>
-                                {{ type.value }}</option>
-                            {% endfor %}
-                        </select>
+                        {{ form.log_title.label(class="visually-hidden") }}
+                        {{ form.log_title(class="form-select form-select-sm") }}
                     </div>
                     <div class="col-12 col-md-2 col-lg-2">
-                        <label for="start_date" class="visually-hidden">시작일</label>
-                        <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ search_params.start_date or '' }}">
+                        {{ form.start_date.label(class="visually-hidden") }}
+                        {{ form.start_date(class="form-control form-control-sm", type="date") }}
                     </div>
                     <div class="col-auto d-flex align-items-center">
                         <span class="form-label mb-0">~</span>
                     </div>
                     <div class="col-12 col-md-2 col-lg-2">
-                        <label for="end_date" class="visually-hidden">종료일</label>
-                        <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ search_params.end_date or '' }}">
+                        {{ form.end_date.label(class="visually-hidden") }}
+                        {{ form.end_date(class="form-control form-control-sm", type="date") }}
                     </div>
                     <div class="col-12 col-md-1 d-grid col-lg-1">
-                        <button type="submit" class="btn btn-primary btn-sm">검색</button>
+                        {{ form.submit(class="btn btn-primary btn-sm") }}
                     </div>
                 </form>
             </div>
@@ -81,7 +76,6 @@
                     <td>{{ log.endpoint }}</td>
                     <td>{{ log.log_title }}</td>
                     <td title="{{ log.log_summary }}">
-                        {# 내용이 길 경우 50자까지만 표시하고 나머지는 ... 처리 #}
                         {{ log.log_summary[:50] }}{% if log.log_summary|length > 50 %}...{% endif %}
                     </td>
                     <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
@@ -113,7 +107,8 @@
     </div>
     {% endif %}
     <div class="card-footer">
-        {{ render_pagination(pagination, 'admin.log_list', filtered_args) }}
+        {# 매크로 인자 4개 전달: pagination, endpoint, filtered_args, page_arg #}
+        {{ render_pagination(pagination, 'admin.log_list', filtered_args, 'page') }}
     </div>
 </div>
 {% endblock %}
