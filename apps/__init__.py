@@ -53,16 +53,18 @@ def create_app():   # factory 함수
     def inject_usage_type():
         return {"UsageType": UsageType}
 
-    # 블루프린트 등록  -- mypage모듈이 없으므로 현재 오류 발생(mypage 설치후 오류 없어짐)
+    # 블루프린트 등록  -- match 모듈이 없으므로 현재 오류 발생(match 작성후 오류 없어짐)
     from .main import main
     from .auth import auth
     from .admin import admin
     from .mypage import mypage
+    from .match import match            # 오류 발생
 
     app.register_blueprint(main)
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(admin, url_prefix="/admin")
     app.register_blueprint(mypage, url_prefix="/mypage")
+    app.register_blueprint(match, url_prefix="/match")
 
     # db 테이블 생성 및 관리자 초기계정 생성
     with app.app_context():
